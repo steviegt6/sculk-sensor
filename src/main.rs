@@ -26,6 +26,6 @@ fn main() {
     let tokens = lexer(&file).collect::<Vec<_>>();
 
     println!("{:#?}", tokens);
-    let output = decompile(tokens);
+    let output = decompile(&tokens);
     println!("{:#?}", output);
 }

@@ -1,15 +1,14 @@
+mod decompiler;
 mod token;
 
+use crate::decompiler::decompile;
 use crate::token::lexer;
 use std::{env::args, path::Path, process::exit};
 
 fn main() {
     let args: Vec<String> = args().collect();
-
     assert!(!args.is_empty());
 
-    // Display a simple help message if the user didn't provide a file for us
-    // to decompile.
     if args.len() != 2 {
         println!("Usage: {} <file>", args[0]);
         return;
@@ -27,4 +26,6 @@ fn main() {
     let tokens = lexer(&file).collect::<Vec<_>>();
 
     println!("{:#?}", tokens);
+    let output = decompile(tokens);
+    println!("{:#?}", output);
 }

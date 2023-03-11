@@ -6,8 +6,8 @@
       "type": "cppvsdbg",
       "request": "launch",
       "program": "${workspaceRoot}/target/debug/sculk-sensor.exe",
-      "args": ["test.mcfunction"],
-      "cwd": "${fileDirname}",
+      "args": ["input"],
+      "cwd": "${workspaceRoot}",
       "console": "externalTerminal"
     },
     {
@@ -15,8 +15,8 @@
       "type": "lldb",
       "request": "launch",
       "program": "${workspaceRoot}/target/debug/sculk-sensor",
-      "args": ["test.mcfunction"],
-      "cwd": "${fileDirname}",
+      "args": ["input"],
+      "cwd": "${workspaceRoot}",
       "console": "externalTerminal"
     }
   ]

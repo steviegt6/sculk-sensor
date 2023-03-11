@@ -1,6 +1,9 @@
 use std::path::Path;
 
-use crate::token::{lexer, Token};
+use crate::token::{
+    lexer, FunctionCall, ScoreboardObjectivesAdd, ScoreboardPlayersOperation, ScoreboardPlayersSet,
+    Token,
+};
 
 #[derive(Debug)]
 pub struct DecompilerSettings {
@@ -10,6 +13,7 @@ pub struct DecompilerSettings {
 #[derive(Debug)]
 pub struct DecompilerContext {
     pub settings: DecompilerSettings,
+    pub name: Option<String>,
     pub functions: Vec<Function>,
     pub entry_function: Option<Function>,
     pub main_function: Option<Function>,
@@ -21,27 +25,27 @@ pub struct Function {
     pub body: Option<Vec<Statement>>,
 }
 
+// define Statement enum
 #[derive(Debug)]
-pub struct Statement {
-    pub command: String,
-    pub args: Vec<String>,
+pub enum Statement {
+    ScoreboardObjectivesAdd(ScoreboardObjectivesAdd),
+    ScoreboardPlayersSet(ScoreboardPlayersSet),
+    ScoreboardPlayersOperation(ScoreboardPlayersOperation),
+    FunctionCall(FunctionCall),
 }
 
 pub fn decompile(dir: &Path, settings: DecompilerSettings) -> Result<DecompilerContext, String> {
     let mut context = DecompilerContext {
         settings,
+        name: None,
         functions: Vec::new(),
         entry_function: None,
         main_function: None,
     };
 
-    match collect_functions(dir) {
-        Ok((functions, main_function, entry_function)) => {
-            context.functions = functions;
-            context.main_function = main_function;
-            context.entry_function = entry_function;
-        }
-        Err(e) => return Err(format!("error: {}", e)),
+    match collect_functions(dir, context) {
+        Ok(ctx) => context = ctx,
+        Err(e) => return Err(e.to_string()),
     }
 
     Ok(context)
@@ -49,11 +53,8 @@ pub fn decompile(dir: &Path, settings: DecompilerSettings) -> Result<DecompilerC
 
 fn collect_functions(
     dir: &Path,
-) -> Result<(Vec<Function>, Option<Function>, Option<Function>), std::io::Error> {
-    let mut functions = Vec::new();
-    let mut entry_function = None;
-    let mut main_function = None;
-
+    mut context: DecompilerContext,
+) -> Result<DecompilerContext, std::io::Error> {
     for entry in std::fs::read_dir(dir)? {
         let entry = entry?;
         let path = entry.path();
@@ -63,7 +64,7 @@ fn collect_functions(
         }
 
         let file = std::fs::read_to_string(path)?;
-        let _tokens = lexer(&file).collect::<Vec<_>>();
+        let tokens = lexer(&file).collect::<Vec<_>>();
 
         // get file name without dir or extension
         let name = &entry
@@ -77,101 +78,66 @@ fn collect_functions(
 
         match name.as_str() {
             "_sculkmain" => {
-                entry_function = Some(Function {
+                context.entry_function = Some(Function {
                     name: String::from(name),
-                    body: None,
+                    body: Some({
+                        let (name, body) = build_entry_body(tokens);
+                        context.name = Some(name);
+                        body
+                    }),
                 });
             }
             "main" => {
-                main_function = Some(Function {
+                context.main_function = Some(Function {
                     name: String::from(name),
-                    body: None,
+                    body: Some(build_main_body(tokens)),
                 });
             }
             _ => {
-                functions.push(Function {
+                context.functions.push(Function {
                     name: String::from(name),
-                    body: None,
+                    body: Some(build_body(tokens)),
                 });
             }
         }
     }
 
-    Ok((functions, entry_function, main_function))
+    Ok(context)
 }
 
-/*pub fn _decompile(input: &Vec<Token>, settings: DecompilerSettings) -> Result<String, String> {
-    let mut output = String::new();
-    let mut i = validate_is_sculk(input)?;
+fn build_entry_body(tokens: Vec<Token>) -> (String, Vec<Statement>) {
+    let statements = build_body(tokens);
 
-    // Since
-    while i < input.len() {
-        match input[i] {
-            Token::Scoreboard => visit_scoreboard(&mut i, input, &mut output)?,
+    (String::new(), vec![])
+}
+
+fn build_main_body(tokens: Vec<Token>) -> Vec<Statement> {
+    // print tokens for debug
+    println!("{:#?}", tokens);
+
+    vec![]
+}
+
+fn build_body(tokens: Vec<Token>) -> Vec<Statement> {
+    let mut statements = Vec::new();
+    let mut i = 0;
+
+    /*while i < tokens.len() {
+        match tokens[i] {
+            Token::Scoreboard => {
+                let (command, args) = build_scoreboard(&mut i, &tokens);
+                statements.push(Statement { command, args });
+            }
+            Token::FunctionCall((namespace, func_name)) => statements.push(Statement {}),
             _ => {
-                i = input.len();
-                return Err(format!(
+                i = tokens.len();
+                panic!(
                     "Invalid/unsupported token, broken control flow?: {:#?}",
-                    input[i]
-                ));
+                    tokens[i]
+                );
             }
         }
-    }
-
-    Ok(output.to_string())
+    }*/
+    println!("{:#?}", tokens);
+    statements
 }
-
-fn validate_is_sculk(input: &Vec<Token>) -> Result<usize, String> {
-    // Attempt to match "scoreboard objects add _SCULK dummy".
-    if input[0] != Token::Scoreboard
-        || input[1] != Token::Objectives
-        || input[2] != Token::Add
-        || input[3] != Token::Sculk
-        || input[4] != Token::Dummy
-    {
-        return Err("Header check failed; not a sculk file".to_string());
-    }
-
-    Ok(5)
-}
-
-fn visit_scoreboard(i: &mut usize, input: &Vec<Token>, output: &mut String) -> Result<(), String> {
-    let command = &input[*i + 1];
-    match command {
-        Token::Objectives => visit_players(i, input, output)?,
-        Token::Players => visit_objectives(i, input, output)?,
-        _ => {
-            *i = input.len();
-            return Err(format!(
-                "Invalid/unsupported scoreboard command {:#?}",
-                command
-            ));
-        }
-    }
-
-    Ok(())
-}
-
-fn visit_players(i: &mut usize, input: &Vec<Token>, output: &mut String) -> Result<(), String> {
-    *i += 1;
-    let command = &input[*i + 1];
-    match command {
-        Token::Operation => visit_players_operation(i, input, output)?,
-        Token::Set
-        _ => {
-            *i = input.len();
-            return Err(format!(
-                "Invalid/unsupported scoreboard players command {:#?}",
-                command
-            ));
-        }
-    }
-
-    Ok(())
-}
-
-fn visit_objectives(i: &mut usize, input: &Vec<Token>, output: &mut String) -> Result<(), String> {
-    // *i += 1;
-    *i = input.len();
-    Err("scoreboard objectives not implemented".to_string())
-}*/

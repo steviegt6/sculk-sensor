@@ -1,3 +1,4 @@
+# test
 scoreboard players operation _TMP0 _SCULK = _ARGdeterminant1 _SCULK
 scoreboard players operation _TMP1 _SCULK = _ARGdeterminant1 _SCULK
 scoreboard players operation _TMP0 _SCULK *= _TMP1 _SCULK

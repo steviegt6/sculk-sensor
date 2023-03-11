@@ -34,6 +34,8 @@ pub enum Statement {
     FunctionCall(FunctionCall),
 }
 
+// TODO: I got lazy and started using panic instead of Results/Options...
+
 pub fn decompile(dir: &Path, settings: DecompilerSettings) -> Result<DecompilerContext, String> {
     let mut context = DecompilerContext {
         settings,
@@ -82,7 +84,7 @@ fn collect_functions(
                     name: String::from(name),
                     body: Some({
                         let (name, body) = build_entry_body(tokens);
-                        context.name = Some(name);
+                        context.name = Some(name.unwrap());
                         body
                     }),
                 });
@@ -105,17 +107,37 @@ fn collect_functions(
     Ok(context)
 }
 
-fn build_entry_body(tokens: Vec<Token>) -> (String, Vec<Statement>) {
-    let statements = build_body(tokens);
+fn build_entry_body(tokens: Vec<Token>) -> (Option<String>, Vec<Statement>) {
+    let name;
 
-    (String::new(), vec![])
+    if tokens.len() != 2 {
+        panic!("Invalid entry function");
+    }
+
+    match &tokens[0] {
+        Token::ScoreboardObjectivesAdd(soa) => {
+            if soa.objective != "_SCULK" {
+                panic!("Invalid entry function");
+            }
+        }
+        _ => panic!("Invalid entry function"),
+    }
+
+    match &tokens[1] {
+        Token::FunctionCall(fc) => {
+            if fc.func_name != "main" {
+                panic!("Invalid entry function");
+            }
+            name = Some(fc.namespace.clone());
+        }
+        _ => panic!("Invalid entry function"),
+    }
+
+    (name, build_body(tokens))
 }
 
 fn build_main_body(tokens: Vec<Token>) -> Vec<Statement> {
-    // print tokens for debug
-    println!("{:#?}", tokens);
-
-    vec![]
+    build_body(tokens)
 }
 
 fn build_body(tokens: Vec<Token>) -> Vec<Statement> {

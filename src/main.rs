@@ -1,8 +1,7 @@
 mod decompiler;
 mod token;
 
-use crate::decompiler::decompile;
-use crate::token::lexer;
+use crate::decompiler::{decompile, DecompilerSettings};
 use std::{env::args, path::Path, process::exit};
 
 fn main() {
@@ -10,22 +9,34 @@ fn main() {
     assert!(!args.is_empty());
 
     if args.len() != 2 {
-        println!("Usage: {} <file>", args[0]);
+        println!("Usage: {} <directory>", args[0]);
         return;
     }
 
     let path = Path::new(&args[1]);
-    if !path.is_file() || !path.exists() {
-        eprintln!("error: {} is not a file", path.display());
+    if !path.is_dir() || !path.exists() {
+        eprintln!("error: {} is not a directory", path.display());
         exit(1);
     }
 
-    // log path
     println!("path: {}", path.display());
-    let file = std::fs::read_to_string(path).unwrap();
+
+    let settings = DecompilerSettings { indent: 4 };
+    let context = decompile(path, settings);
+    match context {
+        Ok(ctx) => {
+            println!("{:?}", ctx);
+        }
+        Err(e) => {
+            eprintln!("error: {}", e);
+            exit(1);
+        }
+    }
+
+    /*let file = std::fs::read_to_string(path).unwrap();
     let tokens = lexer(&file).collect::<Vec<_>>();
 
     println!("{:#?}", tokens);
     let output = decompile(&tokens);
-    println!("{:#?}", output);
+    println!("{:#?}", output);*/
 }

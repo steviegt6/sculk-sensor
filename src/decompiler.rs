@@ -1,6 +1,44 @@
+use std::path::Path;
+
 use crate::token::Token;
 
-pub fn decompile(input: &Vec<Token>) -> Result<String, String> {
+#[derive(Debug)]
+pub struct DecompilerSettings {
+    pub indent: usize,
+}
+
+#[derive(Debug)]
+pub struct DecompilerContext {
+    pub settings: DecompilerSettings,
+    pub functions: Vec<Function>,
+    pub entry_function: Option<Function>,
+    pub main_function: Option<Function>,
+}
+
+#[derive(Debug)]
+pub struct Function {
+    pub name: String,
+    pub body: Option<Vec<Statement>>,
+}
+
+#[derive(Debug)]
+pub struct Statement {
+    pub command: String,
+    pub args: Vec<String>,
+}
+
+pub fn decompile(dir: &Path, settings: DecompilerSettings) -> Result<DecompilerContext, String> {
+    let mut context = DecompilerContext {
+        settings,
+        functions: Vec::new(),
+        entry_function: None,
+        main_function: None,
+    };
+
+    Ok(context)
+}
+
+/*pub fn _decompile(input: &Vec<Token>, settings: DecompilerSettings) -> Result<String, String> {
     let mut output = String::new();
     let mut i = validate_is_sculk(input)?;
 
@@ -74,4 +112,4 @@ fn visit_objectives(i: &mut usize, input: &Vec<Token>, output: &mut String) -> R
     // *i += 1;
     *i = input.len();
     Err("scoreboard objectives not implemented".to_string())
-}
+}*/

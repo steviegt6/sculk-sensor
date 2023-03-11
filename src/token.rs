@@ -20,7 +20,8 @@ pub enum Token {
     #[regex(r"function (\S*)", function_call)]
     FunctionCall(FunctionCall),
 
-    #[regex(r"#([^\r\n]*)", comment)]
+    #[regex(r"#([^\r\n]*)", single_line_comment)]
+    #[regex(r"/\*([\S\s]*)\*/", multi_line_comment)]
     Comment(Comment),
 
     #[error]
@@ -79,6 +80,7 @@ pub struct FunctionCall {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Comment {
+    pub single: bool,
     pub comment: String,
 }
 
@@ -150,9 +152,20 @@ fn function_call(lex: &mut Lexer<Token>) -> Option<FunctionCall> {
     })
 }
 
-fn comment(lex: &mut Lexer<Token>) -> Option<Comment> {
+fn single_line_comment(lex: &mut Lexer<Token>) -> Option<Comment> {
     let comment = lex.slice().to_string();
-    Some(Comment { comment })
+    Some(Comment {
+        single: true,
+        comment,
+    })
+}
+
+fn multi_line_comment(lex: &mut Lexer<Token>) -> Option<Comment> {
+    let comment = lex.slice().to_string();
+    Some(Comment {
+        single: false,
+        comment,
+    })
 }
 
 pub fn lexer(input: &str) -> impl Iterator<Item = Token> + '_ {

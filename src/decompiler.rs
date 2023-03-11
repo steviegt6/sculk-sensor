@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use crate::token::Token;
+use crate::token::{lexer, Token};
 
 #[derive(Debug)]
 pub struct DecompilerSettings {
@@ -35,7 +35,69 @@ pub fn decompile(dir: &Path, settings: DecompilerSettings) -> Result<DecompilerC
         main_function: None,
     };
 
+    match collect_functions(dir) {
+        Ok((functions, main_function, entry_function)) => {
+            context.functions = functions;
+            context.main_function = main_function;
+            context.entry_function = entry_function;
+        }
+        Err(e) => return Err(format!("error: {}", e)),
+    }
+
     Ok(context)
+}
+
+fn collect_functions(
+    dir: &Path,
+) -> Result<(Vec<Function>, Option<Function>, Option<Function>), std::io::Error> {
+    let mut functions = Vec::new();
+    let mut entry_function = None;
+    let mut main_function = None;
+
+    for entry in std::fs::read_dir(dir)? {
+        let entry = entry?;
+        let path = entry.path();
+
+        if path.is_dir() || path.extension().unwrap() != "mcfunction" {
+            continue;
+        }
+
+        let file = std::fs::read_to_string(path)?;
+        let _tokens = lexer(&file).collect::<Vec<_>>();
+
+        // get file name without dir or extension
+        let name = &entry
+            .path()
+            .file_stem()
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_string()
+            .to_lowercase();
+
+        match name.as_str() {
+            "_sculkmain" => {
+                entry_function = Some(Function {
+                    name: String::from(name),
+                    body: None,
+                });
+            }
+            "main" => {
+                main_function = Some(Function {
+                    name: String::from(name),
+                    body: None,
+                });
+            }
+            _ => {
+                functions.push(Function {
+                    name: String::from(name),
+                    body: None,
+                });
+            }
+        }
+    }
+
+    Ok((functions, entry_function, main_function))
 }
 
 /*pub fn _decompile(input: &Vec<Token>, settings: DecompilerSettings) -> Result<String, String> {

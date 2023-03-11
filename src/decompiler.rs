@@ -16,7 +16,6 @@ pub struct DecompilerContext {
     pub name: Option<String>,
     pub functions: Vec<Function>,
     pub entry_function: Option<Function>,
-    pub main_function: Option<Function>,
 }
 
 #[derive(Debug)]
@@ -42,7 +41,6 @@ pub fn decompile(dir: &Path, settings: DecompilerSettings) -> Result<DecompilerC
         name: None,
         functions: Vec::new(),
         entry_function: None,
-        main_function: None,
     };
 
     match collect_functions(dir, context) {
@@ -89,12 +87,6 @@ fn collect_functions(
                     }),
                 });
             }
-            "main" => {
-                context.main_function = Some(Function {
-                    name: String::from(name),
-                    body: Some(build_main_body(tokens)),
-                });
-            }
             _ => {
                 context.functions.push(Function {
                     name: String::from(name),
@@ -125,19 +117,15 @@ fn build_entry_body(tokens: Vec<Token>) -> (Option<String>, Vec<Statement>) {
 
     match &tokens[1] {
         Token::FunctionCall(fc) => {
-            if fc.func_name != "main" {
+            /*if fc.func_name != "main" {
                 panic!("Invalid entry function");
-            }
+            }*/
             name = Some(fc.namespace.clone());
         }
         _ => panic!("Invalid entry function"),
     }
 
     (name, build_body(tokens))
-}
-
-fn build_main_body(tokens: Vec<Token>) -> Vec<Statement> {
-    build_body(tokens)
 }
 
 fn build_body(tokens: Vec<Token>) -> Vec<Statement> {

@@ -1,6 +1,14 @@
 # sculk-sensor
 
-Work-in-progress, experimental decompiler for [Sculk](https://github.com/Trivaxy/sculk).
+Work-in-progress, experimental decompiler for
+[Sculk](https://github.com/Trivaxy/sculk).
+
+TODO: Rewrite decompiler to treat mcfunction statements as instructions on a
+stack. This is especially important for handling `_TMPx` variables (and also
+for understanding what will go in function calls). I will figure something out.
+
+Additionally, extra passes for analysis (for picking up on variable and return
+types and whatnot).
 
 Example output (not exactly functional):
 

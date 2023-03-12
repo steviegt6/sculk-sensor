@@ -21,7 +21,9 @@ fn main() {
 
     println!("path: {}", path.display());
 
-    let settings = DecompilerSettings { indent: 4 };
+    let settings = DecompilerSettings {
+        indent: "    ".to_string(),
+    };
     let context = decompile(path, settings);
     match context {
         Ok(ctx) => {

@@ -10,7 +10,7 @@ use crate::token::{
 
 #[derive(Debug)]
 pub struct DecompilerSettings {
-    pub indent: usize,
+    pub indent: String,
 }
 
 #[derive(Debug)]
@@ -277,7 +277,7 @@ fn build_function(tokens: Vec<Token>, mut func: Function) -> Function {
     func
 }
 
-fn write_functions(mut context: DecompilerContext) -> Result<DecompilerResult, std::io::Error> {
+fn write_functions(context: DecompilerContext) -> Result<DecompilerResult, std::io::Error> {
     let mut entry_function = None;
     let mut decompiled_functions = Vec::new();
 
@@ -322,7 +322,11 @@ fn decompile_function(func: Function, settings: &DecompilerSettings) -> Decompil
     lines.push(format!("fn {}({}) {{", func.name.to_string(), args_fmt));
 
     for instruction in func.body.unwrap() {
-        lines.push(format!("    {};", instruction.to_string()));
+        lines.push(format!(
+            "{}{};",
+            settings.indent.to_string(),
+            instruction.to_string()
+        ));
     }
 
     lines.push("}".to_string());

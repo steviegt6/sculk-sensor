@@ -58,7 +58,7 @@ impl ToString for Instruction {
                 Operation::Assign => format!("{} = {}", po.tmp, po.arg),
                 _ => format!("{} {} {}", po.tmp, po.op.to_string(), po.arg),
             },
-            Instruction::FunctionCall(fc) => format!("/*{}*/{}()", fc.namespace, fc.func_name),
+            Instruction::FunctionCall(fc) => format!("/*{}:*/{}()", fc.namespace, fc.func_name),
             Instruction::ReturnValue(rv) => format!("return {}", rv),
             Instruction::Return() => String::from("return"),
             Instruction::Comment(c) => {

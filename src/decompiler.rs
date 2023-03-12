@@ -44,6 +44,7 @@ pub struct Function {
 pub enum Instruction {
     PlayersSet(PlayersSet),
     PlayersOperation(PlayersOperation),
+    VarDeclaration(VarDeclaration),
     FunctionCall(Call),
     ReturnValue(String),
     Return(),
@@ -59,6 +60,10 @@ impl ToString for Instruction {
                 _ => format!("{} {} {}", po.tmp, po.op.to_string(), po.arg),
             },
             Instruction::FunctionCall(fc) => format!("/*{}:*/{}()", fc.namespace, fc.func_name),
+            Instruction::VarDeclaration(vd) => match &vd.val {
+                Some(val) => format!("var {} = {}", vd.name, val),
+                None => format!("var {}", vd.name),
+            },
             Instruction::ReturnValue(rv) => format!("return {}", rv),
             Instruction::Return() => String::from("return"),
             Instruction::Comment(c) => {
@@ -84,6 +89,12 @@ pub struct PlayersOperation {
     tmp: String,
     arg: String,
     op: Operation,
+}
+
+#[derive(Debug)]
+pub struct VarDeclaration {
+    name: String,
+    val: Option<String>,
 }
 
 #[derive(Debug)]
@@ -310,6 +321,17 @@ fn decompile_function(func: Function, settings: &DecompilerSettings) -> Decompil
         text: String::new(),
     };
 
+    // TODO: Remove _TMPs entirely...
+    let mut tml_decls = Vec::new();
+    for var in func.locs.unwrap() {
+        if var.starts_with("_TMP") {
+            tml_decls.push(Instruction::VarDeclaration(VarDeclaration {
+                name: var,
+                val: None,
+            }));
+        }
+    }
+
     // sort args by key
     let mut args = Vec::new();
     for (key, value) in func.args.unwrap() {
@@ -327,6 +349,14 @@ fn decompile_function(func: Function, settings: &DecompilerSettings) -> Decompil
         .join(", ");
 
     lines.push(format!("fn {}({}) {{", func.name.to_string(), args_fmt));
+
+    for var in tml_decls {
+        lines.push(format!(
+            "{}{};",
+            settings.indent.to_string(),
+            var.to_string()
+        ));
+    }
 
     for instruction in func.body.unwrap() {
         lines.push(format!(

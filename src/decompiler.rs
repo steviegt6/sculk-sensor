@@ -47,7 +47,7 @@ pub enum Instruction {
     VarDeclaration(VarDeclaration),
     FunctionCall(Call),
     ReturnValue(String),
-    Return(),
+    // Return(),
     Comment(String),
 }
 

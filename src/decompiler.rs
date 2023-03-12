@@ -1,8 +1,8 @@
-use std::path::Path;
+use std::{collections::HashMap, path::Path};
 
 use crate::token::{
-    lexer, FunctionCall, ScoreboardObjectivesAdd, ScoreboardPlayersOperation, ScoreboardPlayersSet,
-    Token,
+    lexer, FunctionCall, Operation, ScoreboardObjectivesAdd, ScoreboardPlayersOperation,
+    ScoreboardPlayersSet, Token,
 };
 
 #[derive(Debug)]
@@ -19,36 +19,78 @@ pub struct DecompilerContext {
 }
 
 #[derive(Debug)]
+pub struct DecompilerResult {
+    pub name: String,
+    pub functions: Vec<DecompiledFunction>,
+    pub entry_function: DecompiledFunction,
+}
+
+#[derive(Debug)]
+pub struct DecompiledFunction {
+    pub name: String,
+    pub text: String,
+}
+
+#[derive(Debug)]
 pub struct Function {
     pub name: String,
-    pub body: Option<Vec<Statement>>,
+    pub args: Option<HashMap<usize, String>>,
+    pub body: Option<Vec<Instruction>>,
 }
 
 // define Statement enum
 #[derive(Debug)]
-pub enum Statement {
-    ScoreboardObjectivesAdd(ScoreboardObjectivesAdd),
-    ScoreboardPlayersSet(ScoreboardPlayersSet),
-    ScoreboardPlayersOperation(ScoreboardPlayersOperation),
-    FunctionCall(FunctionCall),
+pub enum Instruction {
+    PlayersSet(PlayersSet),
+    PlayersOperation(PlayersOperation),
+    FunctionCall(Call),
+    Comment(String),
+}
+
+#[derive(Debug)]
+pub struct PlayersSet {
+    tmp: String,
+    val: i32,
+}
+
+#[derive(Debug)]
+pub struct PlayersOperation {
+    tmp: String,
+    arg: String,
+    op: Operation,
+}
+
+#[derive(Debug)]
+pub struct Call {
+    namespace: String,
+    func_name: String,
 }
 
 // TODO: I got lazy and started using panic instead of Results/Options...
 
-pub fn decompile(dir: &Path, settings: DecompilerSettings) -> Result<DecompilerContext, String> {
+pub fn decompile(dir: &Path, settings: DecompilerSettings) -> Result<DecompilerResult, String> {
     let mut context = DecompilerContext {
         settings,
         name: None,
         functions: Vec::new(),
         entry_function: None,
     };
+    let mut result = None;
 
     match collect_functions(dir, context) {
         Ok(ctx) => context = ctx,
         Err(e) => return Err(e.to_string()),
     }
 
-    Ok(context)
+    match write_functions(context) {
+        Ok(res) => result = Some(res),
+        Err(e) => return Err(e.to_string()),
+    }
+
+    match result {
+        Some(res) => Ok(res),
+        None => Err(String::from("uh oh")),
+    }
 }
 
 fn collect_functions(
@@ -80,6 +122,7 @@ fn collect_functions(
             "_sculkmain" => {
                 let mut func = Function {
                     name: String::from(name),
+                    args: None,
                     body: None,
                 };
                 let project_name;
@@ -90,6 +133,7 @@ fn collect_functions(
             _ => {
                 let func = Function {
                     name: String::from(name),
+                    args: None,
                     body: None,
                 };
                 context.functions.push(build_function(tokens, func));
@@ -129,31 +173,110 @@ fn build_entry_body(tokens: Vec<Token>, func: Function) -> (Option<String>, Func
     (name, build_function(tokens, func))
 }
 
-fn build_function(tokens: Vec<Token>, func: Function) -> Function {
+fn build_function(tokens: Vec<Token>, mut func: Function) -> Function {
     println!("{:#?}", tokens);
 
-    let mut statements = Vec::new();
-    let mut i = 0;
+    func.args = Some(HashMap::new());
+    let mut instructions = Vec::new();
 
-    while i < tokens.len() {
-        match &tokens[i] {
+    for token in tokens {
+        match token {
             Token::ScoreboardObjectivesAdd(soa) => {
-                statements.push(Statement::ScoreboardObjectivesAdd(soa.clone()));
+                // Doesn't really translate yet...
+                instructions.push(Instruction::Comment(format!(
+                    "objects add {}",
+                    soa.objective
+                )));
             }
             Token::ScoreboardPlayersSet(sps) => {
-                statements.push(Statement::ScoreboardPlayersSet(sps.clone()));
+                if sps.objective != "_SCULK" {
+                    panic!("Unexpected objective");
+                }
+
+                instructions.push(Instruction::PlayersSet(PlayersSet {
+                    tmp: sps.target.clone(),
+                    val: sps.score,
+                }));
             }
             Token::ScoreboardPlayersOperation(spo) => {
-                statements.push(Statement::ScoreboardPlayersOperation(spo.clone()));
+                if spo.source_objective != "_SCULK" || spo.target_objective != "_SCULK" {
+                    panic!("Unexpected objective(s)");
+                }
+
+                instructions.push(Instruction::PlayersOperation(PlayersOperation {
+                    tmp: spo.target.clone(),
+                    arg: spo.source.clone(),
+                    op: spo.operation.clone(),
+                }));
             }
             Token::FunctionCall(fc) => {
-                statements.push(Statement::FunctionCall(fc.clone()));
+                instructions.push(Instruction::FunctionCall(Call {
+                    namespace: fc.namespace.clone(),
+                    func_name: fc.func_name.clone(),
+                }));
             }
             _ => {}
         }
-
-        i += 1;
     }
 
+    print!("{:#?}", instructions);
+
+    func.body = Some(instructions);
     func
+}
+
+fn write_functions(mut context: DecompilerContext) -> Result<DecompilerResult, std::io::Error> {
+    let mut entry_function = None;
+    let mut decompiled_functions = Vec::new();
+
+    if let Some(func) = context.entry_function {
+        entry_function = Some(decompile_function(func, &context.settings));
+    }
+
+    for func in context.functions {
+        let decompiled_function = decompile_function(func, &context.settings);
+        decompiled_functions.push(decompiled_function);
+    }
+
+    Ok(DecompilerResult {
+        name: context.name.unwrap(),
+        functions: decompiled_functions,
+        entry_function: entry_function.unwrap(),
+    })
+}
+
+fn decompile_function(func: Function, settings: &DecompilerSettings) -> DecompiledFunction {
+    let mut decompiled_function = DecompiledFunction {
+        name: func.name.clone(),
+        text: String::new(),
+    };
+
+    let mut lines = Vec::new();
+
+    for instruction in func.body.unwrap() {
+        match instruction {
+            Instruction::PlayersSet(ps) => {
+                lines.push(format!("{} = {}", ps.tmp, ps.val));
+            }
+            Instruction::PlayersOperation(po) => {
+                lines.push(format!(
+                    "{} = {} {} {}",
+                    po.tmp,
+                    po.tmp,
+                    po.op.to_string(),
+                    po.arg
+                ));
+            }
+            Instruction::FunctionCall(fc) => {
+                lines.push(format!("{}({})", fc.func_name, fc.namespace));
+            }
+            Instruction::Comment(c) => {
+                lines.push(format!("// {}", c));
+            }
+        }
+    }
+
+    decompiled_function.text = lines.join("\n");
+
+    decompiled_function
 }

@@ -3,10 +3,7 @@ use std::{
     path::Path,
 };
 
-use crate::token::{
-    lexer, FunctionCall, Operation, ScoreboardObjectivesAdd, ScoreboardPlayersOperation,
-    ScoreboardPlayersSet, Token,
-};
+use crate::token::{lexer, Operation, Token};
 
 #[derive(Debug)]
 pub struct DecompilerSettings {
@@ -59,7 +56,7 @@ impl ToString for Instruction {
                 Operation::Assign => format!("{} = {}", po.tmp, po.arg),
                 _ => format!("{} {} {}", po.tmp, po.op.to_string(), po.arg),
             },
-            Instruction::FunctionCall(fc) => format!("{}()", fc.func_name),
+            Instruction::FunctionCall(fc) => format!("/*{}*/{}()", fc.namespace, fc.func_name),
             Instruction::Comment(c) => {
                 // check for multiline
                 if c.contains("\n") {
@@ -100,7 +97,7 @@ pub fn decompile(dir: &Path, settings: DecompilerSettings) -> Result<DecompilerR
         functions: Vec::new(),
         entry_function: None,
     };
-    let mut result = None;
+    let result;
 
     match collect_functions(dir, context) {
         Ok(ctx) => context = ctx,

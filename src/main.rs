@@ -25,7 +25,11 @@ fn main() {
     let context = decompile(path, settings);
     match context {
         Ok(ctx) => {
-            println!("{:?}", ctx);
+            println!("{:#?}", ctx);
+            println!("{}", ctx.entry_function.text);
+            for func in ctx.functions {
+                println!("{}", func.text);
+            }
         }
         Err(e) => {
             eprintln!("error: {}", e);

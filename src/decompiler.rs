@@ -1,4 +1,7 @@
-use std::{collections::HashMap, path::Path};
+use std::{
+    collections::{HashMap, HashSet},
+    path::Path,
+};
 
 use crate::token::{
     lexer, FunctionCall, Operation, ScoreboardObjectivesAdd, ScoreboardPlayersOperation,
@@ -34,7 +37,8 @@ pub struct DecompiledFunction {
 #[derive(Debug)]
 pub struct Function {
     pub name: String,
-    pub args: Option<HashMap<usize, String>>,
+    pub args: Option<HashMap<i32, String>>,
+    pub locs: Option<HashSet<String>>,
     pub body: Option<Vec<Instruction>>,
 }
 
@@ -45,6 +49,27 @@ pub enum Instruction {
     PlayersOperation(PlayersOperation),
     FunctionCall(Call),
     Comment(String),
+}
+
+impl ToString for Instruction {
+    fn to_string(&self) -> String {
+        match self {
+            Instruction::PlayersSet(ps) => format!("{} = {}", ps.tmp, ps.val),
+            Instruction::PlayersOperation(po) => match po.op {
+                Operation::Assign => format!("{} = {}", po.tmp, po.arg),
+                _ => format!("{} {} {}", po.tmp, po.op.to_string(), po.arg),
+            },
+            Instruction::FunctionCall(fc) => format!("{}()", fc.func_name),
+            Instruction::Comment(c) => {
+                // check for multiline
+                if c.contains("\n") {
+                    return format!("/* {} */", c);
+                }
+
+                format!("# {}", c)
+            }
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -123,6 +148,7 @@ fn collect_functions(
                 let mut func = Function {
                     name: String::from(name),
                     args: None,
+                    locs: None,
                     body: None,
                 };
                 let project_name;
@@ -134,6 +160,7 @@ fn collect_functions(
                 let func = Function {
                     name: String::from(name),
                     args: None,
+                    locs: None,
                     body: None,
                 };
                 context.functions.push(build_function(tokens, func));
@@ -178,6 +205,8 @@ fn build_function(tokens: Vec<Token>, mut func: Function) -> Function {
 
     func.args = Some(HashMap::new());
     let mut instructions = Vec::new();
+    let mut arguments = HashMap::new();
+    let mut locals = HashSet::new();
 
     for token in tokens {
         match token {
@@ -193,6 +222,13 @@ fn build_function(tokens: Vec<Token>, mut func: Function) -> Function {
                     panic!("Unexpected objective");
                 }
 
+                // TODO: What to do when no _TMP?
+                if sps.target.starts_with("_TMP") {
+                    locals.insert(sps.objective);
+                } else {
+                    panic!("Unexpected objective name");
+                }
+
                 instructions.push(Instruction::PlayersSet(PlayersSet {
                     tmp: sps.target.clone(),
                     val: sps.score,
@@ -201,6 +237,20 @@ fn build_function(tokens: Vec<Token>, mut func: Function) -> Function {
             Token::ScoreboardPlayersOperation(spo) => {
                 if spo.source_objective != "_SCULK" || spo.target_objective != "_SCULK" {
                     panic!("Unexpected objective(s)");
+                }
+
+                // TODO: What to do when no _TMP or _ARG?
+                if spo.source.starts_with("_TMP") {
+                    locals.insert(spo.source.to_string());
+                } else if spo.source.starts_with("_ARG") {
+                    // get i32 from _ARG<func_name>
+                    let slice_name = "_ARG".to_string() + &func.name;
+                    let arg_name = &spo.source[slice_name.len()..];
+                    let arg_num = arg_name.parse::<i32>().unwrap();
+
+                    arguments.insert(arg_num, spo.source.to_string());
+                } else {
+                    panic!("Unexpected objective name");
                 }
 
                 instructions.push(Instruction::PlayersOperation(PlayersOperation {
@@ -222,6 +272,8 @@ fn build_function(tokens: Vec<Token>, mut func: Function) -> Function {
     print!("{:#?}", instructions);
 
     func.body = Some(instructions);
+    func.args = Some(arguments);
+    func.locs = Some(locals);
     func
 }
 
@@ -251,32 +303,30 @@ fn decompile_function(func: Function, settings: &DecompilerSettings) -> Decompil
         text: String::new(),
     };
 
+    // sort args by key
+    let mut args = Vec::new();
+    for (key, value) in func.args.unwrap() {
+        args.push((key, value));
+    }
+    args.sort_by(|a, b| a.0.cmp(&b.0));
+
     let mut lines = Vec::new();
 
+    // format args as "arg0, arg1, arg2, ..."
+    let args_fmt = args
+        .iter()
+        .map(|arg| arg.1.to_string())
+        .collect::<Vec<String>>()
+        .join(", ");
+
+    lines.push(format!("fn {}({}) {{", func.name.to_string(), args_fmt));
+
     for instruction in func.body.unwrap() {
-        match instruction {
-            Instruction::PlayersSet(ps) => {
-                lines.push(format!("{} = {}", ps.tmp, ps.val));
-            }
-            Instruction::PlayersOperation(po) => {
-                lines.push(format!(
-                    "{} = {} {} {}",
-                    po.tmp,
-                    po.tmp,
-                    po.op.to_string(),
-                    po.arg
-                ));
-            }
-            Instruction::FunctionCall(fc) => {
-                lines.push(format!("{}({})", fc.func_name, fc.namespace));
-            }
-            Instruction::Comment(c) => {
-                lines.push(format!("// {}", c));
-            }
-        }
+        lines.push(format!("    {}", instruction.to_string()));
     }
 
-    decompiled_function.text = lines.join("\n");
+    lines.push("}".to_string());
 
+    decompiled_function.text = lines.join("\n");
     decompiled_function
 }

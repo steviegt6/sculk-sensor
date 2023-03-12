@@ -1,6 +1,6 @@
 # sculk-sensor
 
-Work-in-progress, experimental decompiler for [sculk](https://github.com/Trivaxy/sculk).
+Work-in-progress, experimental decompiler for [Sculk](https://github.com/Trivaxy/sculk).
 
 Example output (not exactly functional):
 

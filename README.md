@@ -60,7 +60,7 @@ fn _sculkmain() {
 }
 
 # decompiled main
-n main() {
+fn main() {
     var _TMP0;
     _TMP0 = 4;
     _ARGdeterminant0 = _TMP0;

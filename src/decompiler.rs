@@ -78,20 +78,21 @@ fn collect_functions(
 
         match name.as_str() {
             "_sculkmain" => {
-                context.entry_function = Some(Function {
+                let mut func = Function {
                     name: String::from(name),
-                    body: Some({
-                        let (name, body) = build_entry_body(tokens);
-                        context.name = Some(name.unwrap());
-                        body
-                    }),
-                });
+                    body: None,
+                };
+                let project_name;
+                (project_name, func) = build_entry_body(tokens, func);
+                context.name = Some(project_name.unwrap());
+                context.entry_function = Some(func);
             }
             _ => {
-                context.functions.push(Function {
+                let func = Function {
                     name: String::from(name),
-                    body: Some(build_body(tokens)),
-                });
+                    body: None,
+                };
+                context.functions.push(build_function(tokens, func));
             }
         }
     }
@@ -99,7 +100,7 @@ fn collect_functions(
     Ok(context)
 }
 
-fn build_entry_body(tokens: Vec<Token>) -> (Option<String>, Vec<Statement>) {
+fn build_entry_body(tokens: Vec<Token>, func: Function) -> (Option<String>, Function) {
     let name;
 
     if tokens.len() != 2 {
@@ -125,29 +126,34 @@ fn build_entry_body(tokens: Vec<Token>) -> (Option<String>, Vec<Statement>) {
         _ => panic!("Invalid entry function"),
     }
 
-    (name, build_body(tokens))
+    (name, build_function(tokens, func))
 }
 
-fn build_body(tokens: Vec<Token>) -> Vec<Statement> {
+fn build_function(tokens: Vec<Token>, func: Function) -> Function {
+    println!("{:#?}", tokens);
+
     let mut statements = Vec::new();
     let mut i = 0;
 
-    /*while i < tokens.len() {
-        match tokens[i] {
-            Token::Scoreboard => {
-                let (command, args) = build_scoreboard(&mut i, &tokens);
-                statements.push(Statement { command, args });
+    while i < tokens.len() {
+        match &tokens[i] {
+            Token::ScoreboardObjectivesAdd(soa) => {
+                statements.push(Statement::ScoreboardObjectivesAdd(soa.clone()));
             }
-            Token::FunctionCall((namespace, func_name)) => statements.push(Statement {}),
-            _ => {
-                i = tokens.len();
-                panic!(
-                    "Invalid/unsupported token, broken control flow?: {:#?}",
-                    tokens[i]
-                );
+            Token::ScoreboardPlayersSet(sps) => {
+                statements.push(Statement::ScoreboardPlayersSet(sps.clone()));
             }
+            Token::ScoreboardPlayersOperation(spo) => {
+                statements.push(Statement::ScoreboardPlayersOperation(spo.clone()));
+            }
+            Token::FunctionCall(fc) => {
+                statements.push(Statement::FunctionCall(fc.clone()));
+            }
+            _ => {}
         }
-    }*/
-    println!("{:#?}", tokens);
-    statements
+
+        i += 1;
+    }
+
+    func
 }

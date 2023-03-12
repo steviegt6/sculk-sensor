@@ -322,7 +322,7 @@ fn decompile_function(func: Function, settings: &DecompilerSettings) -> Decompil
     lines.push(format!("fn {}({}) {{", func.name.to_string(), args_fmt));
 
     for instruction in func.body.unwrap() {
-        lines.push(format!("    {}", instruction.to_string()));
+        lines.push(format!("    {};", instruction.to_string()));
     }
 
     lines.push("}".to_string());

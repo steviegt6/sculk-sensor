@@ -45,6 +45,8 @@ pub enum Instruction {
     PlayersSet(PlayersSet),
     PlayersOperation(PlayersOperation),
     FunctionCall(Call),
+    ReturnValue(String),
+    Return(),
     Comment(String),
 }
 
@@ -57,6 +59,8 @@ impl ToString for Instruction {
                 _ => format!("{} {} {}", po.tmp, po.op.to_string(), po.arg),
             },
             Instruction::FunctionCall(fc) => format!("/*{}*/{}()", fc.namespace, fc.func_name),
+            Instruction::ReturnValue(rv) => format!("return {}", rv),
+            Instruction::Return() => String::from("return"),
             Instruction::Comment(c) => {
                 // check for multiline
                 if c.contains("\n") {
@@ -237,6 +241,8 @@ fn build_function(tokens: Vec<Token>, mut func: Function) -> Function {
                 }
 
                 // TODO: What to do when no _TMP or _ARG?
+                // TODO: Support for _VAR_<name>
+                // TODO: Infer stack pushes based on _TMPs (registers)
                 if spo.source.starts_with("_TMP") {
                     locals.insert(spo.source.to_string());
                 } else if spo.source.starts_with("_ARG") {
@@ -250,11 +256,15 @@ fn build_function(tokens: Vec<Token>, mut func: Function) -> Function {
                     panic!("Unexpected objective name");
                 }
 
-                instructions.push(Instruction::PlayersOperation(PlayersOperation {
-                    tmp: spo.target.clone(),
-                    arg: spo.source.clone(),
-                    op: spo.operation.clone(),
-                }));
+                if spo.target == "_RET" && spo.operation == Operation::Assign {
+                    instructions.push(Instruction::ReturnValue(spo.source));
+                } else {
+                    instructions.push(Instruction::PlayersOperation(PlayersOperation {
+                        tmp: spo.target.clone(),
+                        arg: spo.source.clone(),
+                        op: spo.operation.clone(),
+                    }));
+                }
             }
             Token::FunctionCall(fc) => {
                 instructions.push(Instruction::FunctionCall(Call {

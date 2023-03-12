@@ -1,5 +1,13 @@
 use logos::{Lexer, Logos};
 
+// TODO: I've gone through a few different designs with this, and have settled
+// on matching individual possible statements, but this is still pretty messy.
+// An alternative I could see working is matching comments and then their
+// variants, like matching 'scoreboard', then 'players', then 'operation' or
+// 'set', and branching from there. This would also effectively combine these
+// enums. I don't necessarily know all the advantages (or disadvantages) that
+// would come from this.
+
 #[derive(Logos, Debug, PartialEq, Clone)]
 pub enum Token {
     #[regex(r"[ \t\r\n\f]+", logos::skip)]

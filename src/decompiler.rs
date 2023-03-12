@@ -65,7 +65,7 @@ impl ToString for Instruction {
                 None => format!("var {}", vd.name),
             },
             Instruction::ReturnValue(rv) => format!("return {}", rv),
-            Instruction::Return() => String::from("return"),
+            // Instruction::Return() => String::from("return"),
             Instruction::Comment(c) => {
                 // check for multiline
                 if c.contains("\n") {

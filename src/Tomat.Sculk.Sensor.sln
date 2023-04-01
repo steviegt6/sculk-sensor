@@ -7,7 +7,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sculk.Sensor", "Sculk.Senso
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sculk.Catalyst", "Sculk.Catalyst\Sculk.Catalyst.csproj", "{4B717E8E-7381-4538-9435-61056ACA2807}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sculk.Sensor.Test", "Sculk.Sensor.Test\Sculk.Sensor.Test.csproj", "{1FD756E0-D95F-495D-9ECF-F085715D87EF}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Sculk.Sensor.Tests", "Sculk.Sensor.Tests\Sculk.Sensor.Tests.csproj", "{1FD756E0-D95F-495D-9ECF-F085715D87EF}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

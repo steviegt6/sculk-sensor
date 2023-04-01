@@ -26,16 +26,11 @@ public sealed class MinecraftBlockPos : IArgument<BlockPosition> {
     }
 
     private static Coordinate<int> ParseCoordinate(string arg) {
-        var notation = CoordinateNotation.Absolute;
-
-        if (arg.StartsWith("~")) {
-            arg = arg["~".Length..];
-            notation = CoordinateNotation.Relative;
-        }
-        else if (arg.StartsWith("^")) {
-            arg = arg["^".Length..];
-            notation = CoordinateNotation.Local;
-        }
+        arg = NotationUtil.HandleNotation(
+            arg,
+            out var notation,
+            CoordinateNotation.Absolute | CoordinateNotation.Relative | CoordinateNotation.Local
+        );
 
         var result = int.TryParse(arg, out var value);
         if (!result)

@@ -12,13 +12,11 @@ public sealed class MinecraftAngle : IArgument<Coordinate<float>> {
         ref int index
     ) {
         ArgConditions.AssertArgumentCount(args, index + 1);
-        var angleStr = args[index++];
-        var notation = CoordinateNotation.Absolute;
-
-        if (angleStr.StartsWith("~")) {
-            angleStr = angleStr["~".Length..];
-            notation = CoordinateNotation.Relative;
-        }
+        var angleStr = NotationUtil.HandleNotation(
+            args[index++],
+            out var notation,
+            CoordinateNotation.Absolute | CoordinateNotation.Relative
+        );
 
         var result = float.TryParse(angleStr, out var angle);
         if (!result)

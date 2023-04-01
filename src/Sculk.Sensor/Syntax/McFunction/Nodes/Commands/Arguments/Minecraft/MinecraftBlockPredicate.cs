@@ -30,8 +30,7 @@ public sealed class MinecraftBlockPredicate : IArgument<BlockPredicate> {
         ArgConditions.AssertArgumentCount(args, index + 1);
         var blockStr = args[index++];
 
-        string ns;
-        string path;
+        ResourceLocation rl;
 
         var hasStates = blockStr.Contains('[');
         var hasTags = blockStr.Contains('{');
@@ -42,46 +41,32 @@ public sealed class MinecraftBlockPredicate : IArgument<BlockPredicate> {
 
         // No block states or data tags.
         if (!hasStates && !hasTags) {
-            ns = "minecraft";
-            path = blockStr;
-
-            if (blockStr.Contains(':')) {
-                ns = blockStr[..blockStr.IndexOf(':')];
-                path = blockStr[(blockStr.IndexOf(':') + 1)..];
-            }
+            var result = ResourceLocation.TryParse(blockStr, out rl);
+            
+            if (!result)
+                throw new ArgumentException($"Expected a block, but got {blockStr}.");
 
             return new MinecraftBlockPredicate(
-                new ResourceLocation(ns, path),
+                rl,
                 null,
                 null
             );
         }
 
-        // Block states or data tags.
-        ns = "minecraft";
-
         // States always come before tags, so only check based on
         if (hasStates) {
             var blockId = blockStr[..blockStr.IndexOf('[')];
-
-            if (blockId.Contains(':')) {
-                ns = blockId[..blockId.IndexOf(':')];
-                path = blockId[(blockId.IndexOf(':') + 1)..];
-            }
-            else {
-                path = blockId;
-            }
+            var result = ResourceLocation.TryParse(blockId, out rl);
+            
+            if (!result)
+                throw new ArgumentException($"Expected a block, but got {blockStr}.");
         }
         else if (hasTags) {
             var blockId = blockStr[..blockStr.IndexOf('{')];
-
-            if (blockId.Contains(':')) {
-                ns = blockId[..blockId.IndexOf(':')];
-                path = blockId[(blockId.IndexOf(':') + 1)..];
-            }
-            else {
-                path = blockId;
-            }
+            var result = ResourceLocation.TryParse(blockId, out rl);
+            
+            if (!result)
+                throw new ArgumentException($"Expected a block, but got {blockStr}.");
         }
         else {
             throw new InvalidOperationException();
@@ -113,7 +98,7 @@ public sealed class MinecraftBlockPredicate : IArgument<BlockPredicate> {
         }
 
         return new MinecraftBlockPredicate(
-            new ResourceLocation(ns, path),
+            rl,
             blockStates,
             dataTags
         );

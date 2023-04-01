@@ -20,12 +20,11 @@ public sealed class MinecraftColumnPos : IArgument<ColumnPosition> {
     }
 
     private static Coordinate<int> ParseCoordinate(string arg) {
-        var notation = CoordinateNotation.Absolute;
-
-        if (arg.StartsWith("~")) {
-            arg = arg["~".Length..];
-            notation = CoordinateNotation.Relative;
-        }
+        arg = NotationUtil.HandleNotation(
+            arg,
+            out var notation,
+            CoordinateNotation.Absolute | CoordinateNotation.Relative
+        );
 
         var result = int.TryParse(arg, out var value);
         if (!result)

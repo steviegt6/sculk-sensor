@@ -11,4 +11,9 @@
       <ProjectReference Include="..\Sculk.Sensor\Sculk.Sensor.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+      <PackageReference Include="CliFx" Version="2.3.1" />
+      <PackageReference Include="JetBrains.Annotations" Version="2023.2.0-eap1" />
+    </ItemGroup>
+
 </Project>

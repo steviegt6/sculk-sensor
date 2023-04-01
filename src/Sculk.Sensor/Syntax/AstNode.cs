@@ -21,5 +21,5 @@ public abstract class AstNode<TNodeType> {
     /// <summary>
     ///     Gets the children of this node.
     /// </summary>
-    public abstract IEnumerable<AstNode<TNodeType>> Children { get; }
+    public abstract List<AstNode<TNodeType>> Children { get; }
 }

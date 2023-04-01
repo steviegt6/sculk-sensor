@@ -18,7 +18,7 @@ public sealed class SensorEnum<TEnum> : IArgument<TEnum>
             out var value
         );
         if (!result)
-            throw new System.ArgumentException($"Expected a {typeof(TEnum).Name}, but got {args[index - 1]}.");
+            throw new ArgumentException($"Expected a {typeof(TEnum).Name}, but got {args[index - 1]}.");
 
         return new SensorEnum<TEnum>(value);
     }

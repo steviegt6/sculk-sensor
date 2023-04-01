@@ -5,18 +5,14 @@ using CliFx;
 using CliFx.Attributes;
 using CliFx.Infrastructure;
 using JetBrains.Annotations;
+using Sculk.Sensor;
+using Sculk.Sensor.Config;
 
 namespace Sculk.Catalyst;
 
 [UsedImplicitly(ImplicitUseKindFlags.InstantiatedWithFixedConstructorSignature)]
 [Command(Description = "Decompiles the Sculk directory or file")]
 public sealed class DecompileCommand : ICommand {
-    public enum OutputType {
-        File,
-        Directory,
-        Unknown,
-    }
-
     public const int INPUT_ORDER = 0;
     public const string INPUT_NAME = "input";
     public const string INPUT_DESCRIPTION = "The input file or directory.";
@@ -48,19 +44,19 @@ public sealed class DecompileCommand : ICommand {
     ValueTask ICommand.ExecuteAsync(IConsole c) {
         //Input = Path.GetFullPath(Input);
 
-        var outputType = ResolveOutputType();
-        Output = ResolveOutput(outputType);
+        var projectType = ResolveProjectType();
+        Output = ResolveOutput(projectType);
 
-        switch (outputType) {
-            case OutputType.File:
+        switch (projectType) {
+            case ProjectType.File:
                 DecompileFile(c);
                 break;
 
-            case OutputType.Directory:
+            case ProjectType.Directory:
                 DecompileDirectory(c);
                 break;
 
-            case OutputType.Unknown:
+            case ProjectType.Unknown:
                 c.Output.WriteLine($"Input '{Input}' does not exist.");
                 break;
 
@@ -71,17 +67,17 @@ public sealed class DecompileCommand : ICommand {
         return default;
     }
 
-    private OutputType ResolveOutputType() {
+    private ProjectType ResolveProjectType() {
         if (File.Exists(Input))
-            return OutputType.File;
+            return ProjectType.File;
 
         if (Directory.Exists(Input))
-            return OutputType.Directory;
+            return ProjectType.Directory;
 
-        return OutputType.Unknown;
+        return ProjectType.Unknown;
     }
 
-    private string? ResolveOutput(OutputType outputType) {
+    private string? ResolveOutput(ProjectType projectType) {
         if (Output is not null)
             return Output;
 
@@ -90,10 +86,10 @@ public sealed class DecompileCommand : ICommand {
             Path.GetFileNameWithoutExtension(Input)
         );
 
-        return outputType switch {
-            OutputType.File => Output + ".sculk",
-            OutputType.Directory => Output,
-            OutputType.Unknown => null,
+        return projectType switch {
+            ProjectType.File => Output + ".sculk",
+            ProjectType.Directory => Output,
+            ProjectType.Unknown => null,
             _ => throw new InvalidOperationException(),
         };
     }
@@ -104,6 +100,9 @@ public sealed class DecompileCommand : ICommand {
 
         c.Output.WriteLine($"Treating output '{Output}' as a file.");
         c.Output.WriteLine($"Decompiling file '{Input}'...");
+
+        var settings = GetSettings(ProjectType.File);
+        Decompile(c, settings);
     }
 
     private void DecompileDirectory(IConsole c) {
@@ -112,5 +111,38 @@ public sealed class DecompileCommand : ICommand {
 
         c.Output.WriteLine($"Treating output '{Output}' as a directory.");
         c.Output.WriteLine($"Decompiling directory '{Input}'...");
+
+        var settings = GetSettings(ProjectType.Directory);
+        Decompile(c, settings);
+    }
+
+    private static void Decompile(IConsole c, DecompilerSettings settings) {
+        void logProgress(DecompilationProgress progress) {
+            var msg = $"({progress.CurrentProgress}/{progress.TotalProgress})";
+
+            if (progress.Name is not null)
+                msg += $" {progress.Name}";
+
+            if (progress.Description is not null) {
+                if (progress.Name is not null)
+                    msg += " -";
+
+                msg += $" {progress.Description}";
+            }
+
+            c.Output.WriteLine(msg);
+        }
+
+        settings.OnProgress += logProgress;
+        var decompiler = new SculkDecompiler(settings);
+    }
+
+    private DecompilerSettings GetSettings(ProjectType projectType) {
+        return new DecompilerSettings {
+            // TODO: Configurable formatting options.
+            Formatting = new FormattingSettings(),
+            ProjectType = projectType,
+            Input = Input,
+        };
     }
 }

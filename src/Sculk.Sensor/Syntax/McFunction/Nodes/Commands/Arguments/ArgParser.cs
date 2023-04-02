@@ -47,4 +47,8 @@ internal static class ArgParser {
 
         return input;
     }
+
+    internal static Dictionary<string, object> ParseStates(string input) {
+        
+    }
 }
